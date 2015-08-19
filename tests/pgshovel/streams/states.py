@@ -5,7 +5,7 @@ from collections import namedtuple
 import pytest
 
 from pgshovel.interfaces.streams_pb2 import BatchOperation
-from pgshovel.streams.states import (
+from pgshovel.replication.validation.transactions import (
     Committed,
     InTransaction,
     InvalidBatch,
@@ -19,7 +19,7 @@ from pgshovel.streams.states import (
     require_different_publisher,
     require_same_batch,
     require_same_publisher,
-    validate,
+    validate_transaction_state,
 )
 from tests.pgshovel.streams.fixtures import (
     batch_identifier,
@@ -37,8 +37,8 @@ def test_require_same_batch(message):
 
     require_same_batch(
         InTransaction(
-            message.header.publisher,
-            batch_identifier,
+            publisher=message.header.publisher,
+            batch_identifier=batch_identifier,
         ),
         message,
     )
@@ -46,8 +46,8 @@ def test_require_same_batch(message):
     with pytest.raises(InvalidBatch):
         require_same_batch(
             InTransaction(
-                message.header.publisher,
-                copy(batch_identifier, id=batch_identifier.id + 1),
+                publisher=message.header.publisher,
+                batch_identifier=copy(batch_identifier, id=batch_identifier.id + 1),
             ),
             message,
         )
@@ -58,16 +58,16 @@ def test_require_batch_advanced_if_same_node(message):
 
     require_batch_id_advanced_if_same_node(
         Committed(
-            message.header.publisher,
-            copy(batch_identifier, node=uuid.uuid1().bytes),
+            publisher=message.header.publisher,
+            batch_identifier=copy(batch_identifier, node=uuid.uuid1().bytes),
         ),
         message,
     )
 
     require_batch_id_advanced_if_same_node(
         Committed(
-            message.header.publisher,
-            copy(batch_identifier, id=batch_identifier.id - 1),
+            publisher=message.header.publisher,
+            batch_identifier=copy(batch_identifier, id=batch_identifier.id - 1),
         ),
         message,
     )
@@ -75,8 +75,8 @@ def test_require_batch_advanced_if_same_node(message):
     with pytest.raises(InvalidBatch):
         require_batch_id_advanced_if_same_node(
             Committed(
-                message.header.publisher,
-                batch_identifier,
+                publisher=message.header.publisher,
+                batch_identifier=batch_identifier,
             ),
             message,
         )
@@ -87,16 +87,16 @@ def test_require_batch_id_not_advanced_if_same_node(message):
 
     require_batch_id_not_advanced_if_same_node(
         RolledBack(
-            message.header.publisher,
-            batch_identifier,
+            publisher=message.header.publisher,
+            batch_identifier=batch_identifier,
         ),
         message,
     )
 
     require_batch_id_not_advanced_if_same_node(
         RolledBack(
-            message.header.publisher,
-            copy(batch_identifier, node=uuid.uuid1().bytes),
+            publisher=message.header.publisher,
+            batch_identifier=copy(batch_identifier, node=uuid.uuid1().bytes),
         ),
         message,
     )
@@ -104,8 +104,8 @@ def test_require_batch_id_not_advanced_if_same_node(message):
     with pytest.raises(InvalidBatch):
         require_batch_id_not_advanced_if_same_node(
             RolledBack(
-                message.header.publisher,
-                copy(batch_identifier, id=batch_identifier.id + 1),
+                publisher=message.header.publisher,
+                batch_identifier=copy(batch_identifier, id=batch_identifier.id + 1),
             ),
             message,
         )
@@ -116,8 +116,8 @@ def test_require_same_publisher(message):
 
     require_same_publisher(
         Committed(
-            message.header.publisher,
-            batch_identifier,
+            publisher=message.header.publisher,
+            batch_identifier=batch_identifier,
         ),
         message,
     )
@@ -125,8 +125,8 @@ def test_require_same_publisher(message):
     with pytest.raises(InvalidPublisher):
         require_same_publisher(
             Committed(
-                uuid.uuid1().bytes,
-                batch_identifier,
+                publisher=uuid.uuid1().bytes,
+                batch_identifier=batch_identifier,
             ),
             message,
         )
@@ -137,8 +137,8 @@ def test_require_different_publisher(message):
 
     require_different_publisher(
         Committed(
-            uuid.uuid1().bytes,  # change the publisher
-            batch_identifier,
+            publisher=uuid.uuid1().bytes,  # change the publisher
+            batch_identifier=batch_identifier,
         ),
         message,
     )
@@ -146,8 +146,8 @@ def test_require_different_publisher(message):
     with pytest.raises(InvalidPublisher):
         require_different_publisher(
             Committed(
-                message.header.publisher,
-                batch_identifier,
+                publisher=message.header.publisher,
+                batch_identifier=batch_identifier,
             ),
             message,
         )
@@ -203,11 +203,29 @@ def test_successful_transaction():
         {'commit_operation': commit},
     ]))
 
-    validated = validate(messages)
+    validated = validate_transaction_state(messages)
 
-    assert next(validated) == (InTransaction(messages[0].header.publisher, batch_identifier), messages[0])
-    assert next(validated) == (InTransaction(messages[1].header.publisher, batch_identifier), messages[1])
-    assert next(validated) == (Committed(messages[2].header.publisher, batch_identifier), messages[2])
+    assert next(validated) == (
+        InTransaction(
+            publisher=messages[0].header.publisher,
+            batch_identifier=batch_identifier
+        ),
+        messages[0]
+    )
+    assert next(validated) == (
+        InTransaction(
+            publisher=messages[1].header.publisher,
+            batch_identifier=batch_identifier
+        ),
+        messages[1]
+    )
+    assert next(validated) == (
+        Committed(
+            publisher=messages[2].header.publisher,
+            batch_identifier=batch_identifier
+        ),
+        messages[2]
+    )
 
 
 # TODO: Add test to ensure that {Committed,RolledBack} can transition to

@@ -1,11 +1,9 @@
 import pytest
 
-from pgshovel.streams import (
-    sequences,
-    states,
-)
-from pgshovel.streams.batches import get_operation
+from pgshovel.replication.validation import consumers
+from pgshovel.replication.validation import transactions
 from pgshovel.streams.publisher import Publisher
+from pgshovel.utilities.protobuf import get_oneof_value
 from tests.pgshovel.streams.fixtures import (
     batch_identifier,
     begin,
@@ -25,17 +23,26 @@ def test_publisher():
 
     published_messages = map(reserialize, messages)
 
-    assert get_operation(get_operation(published_messages[0])) == begin
-    assert get_operation(get_operation(published_messages[1])) == mutation
-    assert get_operation(get_operation(published_messages[2])) == commit
+    assert get_oneof_value(
+        get_oneof_value(published_messages[0], 'operation'),
+        'operation'
+    ) == begin
+    assert get_oneof_value(
+        get_oneof_value(published_messages[1], 'operation'),
+        'operation'
+    ) == mutation
+    assert get_oneof_value(
+        get_oneof_value(published_messages[2], 'operation'),
+        'operation'
+    ) == commit
 
     for i, message in enumerate(published_messages):
         assert message.header.publisher == publisher.id
         assert message.header.sequence == i
 
     # Ensure it actually generates valid data.
-    assert list(states.validate(published_messages))
-    assert list(sequences.validate(published_messages))
+    assert list(transactions.validate_transaction_state(published_messages))
+    assert list(consumers.validate_consumer_state(published_messages))
 
 
 def test_publisher_failure():
@@ -48,12 +55,18 @@ def test_publisher_failure():
 
     published_messages = map(reserialize, messages)
 
-    assert get_operation(get_operation(published_messages[0])) == begin
-    assert get_operation(get_operation(published_messages[1])) == rollback
+    assert get_oneof_value(
+        get_oneof_value(published_messages[0], 'operation'),
+        'operation'
+    ) == begin
+    assert get_oneof_value(
+        get_oneof_value(published_messages[1], 'operation'),
+        'operation'
+    ) == rollback
 
     # Ensure it actually generates valid data.
-    assert list(states.validate(published_messages))
-    assert list(sequences.validate(published_messages))
+    assert list(transactions.validate_transaction_state(published_messages))
+    assert list(consumers.validate_consumer_state(published_messages))
 
     for i, message in enumerate(published_messages):
         assert message.header.publisher == publisher.id
