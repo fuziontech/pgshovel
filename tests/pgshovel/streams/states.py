@@ -200,7 +200,7 @@ def test_successful_transaction():
             batch_identifier=batch_identifier
         )
     )
-    state = reserialize(validate_transaction_state(state, 0, messages[2]))
+    state = reserialize(validate_transaction_state(state, 2, messages[2]))
     assert get_oneof_value(state, 'state') == (
         Committed(
             publisher=messages[2].header.publisher,
