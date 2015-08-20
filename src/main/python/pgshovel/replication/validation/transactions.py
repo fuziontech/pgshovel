@@ -51,6 +51,7 @@ class StatefulStreamValidator(object):
         if state is not None:
             state = get_oneof_value(state, 'state')
 
+        # import pdb; pdb.set_trace()
         operation = get_oneof_value(get_oneof_value(message, 'operation'), 'operation')
 
         try:
