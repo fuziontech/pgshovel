@@ -21,34 +21,36 @@ from tests.pgshovel.streams.fixtures import (
 )
 
 
-# def test_publisher():
-#     messages = []
-#     publisher = Publisher(messages.extend)
+def test_publisher():
+    messages = []
+    publisher = Publisher(messages.extend)
 
-#     with publisher.batch(batch_identifier, begin) as publish:
-#         publish(mutation)
+    with publisher.batch(batch_identifier, begin) as publish:
+        publish(mutation)
 
-#     published_messages = map(reserialize, messages)
+    published_messages = map(reserialize, messages)
 
-#     assert get_oneof_value(
-#         get_oneof_value(published_messages[0], 'operation'),
-#         'operation'
-#     ) == begin
-#     assert get_oneof_value(
-#         get_oneof_value(published_messages[1], 'operation'),
-#         'operation'
-#     ) == mutation
-#     assert get_oneof_value(
-#         get_oneof_value(published_messages[2], 'operation'),
-#         'operation'
-#     ) == commit
+    assert get_oneof_value(
+        get_oneof_value(published_messages[0], 'operation'),
+        'operation'
+    ) == begin
+    assert get_oneof_value(
+        get_oneof_value(published_messages[1], 'operation'),
+        'operation'
+    ) == mutation
+    assert get_oneof_value(
+        get_oneof_value(published_messages[2], 'operation'),
+        'operation'
+    ) == commit
 
-#     for i, message in enumerate(published_messages):
-#         assert message.header.publisher == publisher.id
-#         assert message.header.sequence == i
+    for i, message in enumerate(published_messages):
+        assert message.header.publisher == publisher.id
+        assert message.header.sequence == i
 
-#     # Ensure it actually generates valid data.
-#     assert list(validate_state(published_messages))
+    # Ensure it actually generates valid data.
+    state = None
+    for offset, message in enumerate(published_messages):
+        state = reserialize(validate_state(state, offset, message))
 
 
 def test_publisher_failure():
