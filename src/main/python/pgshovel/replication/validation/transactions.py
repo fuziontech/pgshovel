@@ -51,7 +51,6 @@ class StatefulStreamValidator(object):
         if state is not None:
             state = get_oneof_value(state, 'state')
 
-        # import pdb; pdb.set_trace()
         operation = get_oneof_value(get_oneof_value(message, 'operation'), 'operation')
 
         try:
@@ -92,34 +91,34 @@ def validate_event(validators, receiver):
     return __validate__
 
 
-def require_same_batch(event, message):
+def require_same_batch(state, offset, message):
     # TODO: This should probably validate the tick contents as well.
-    if event.batch_identifier != message.batch_operation.batch_identifier:
+    if state.batch_identifier != message.batch_operation.batch_identifier:
         raise InvalidBatch('Event batch ID must be the same as the current state.')
 
 
-def require_batch_id_advanced_if_same_node(event, message):
+def require_batch_id_advanced_if_same_node(state, offset, message):
     # TODO: This should probably validate the tick contents as well.
     operation = message.batch_operation
-    if event.batch_identifier.node == operation.batch_identifier.node and \
-            event.batch_identifier.id >= operation.batch_identifier.id:
+    if state.batch_identifier.node == operation.batch_identifier.node and \
+            state.batch_identifier.id >= operation.batch_identifier.id:
         raise InvalidBatch('Event batch ID must be advanced from the current state.')
 
 
-def require_batch_id_not_advanced_if_same_node(event, message):
+def require_batch_id_not_advanced_if_same_node(state, offset, message):
     operation = message.batch_operation
-    if event.batch_identifier.node == operation.batch_identifier.node and \
-            event.batch_identifier.id != operation.batch_identifier.id:
+    if state.batch_identifier.node == operation.batch_identifier.node and \
+            state.batch_identifier.id != operation.batch_identifier.id:
         raise InvalidBatch('Event batch ID must not be advanced from the current state.')
 
 
-def require_same_publisher(event, message):
-    if event.publisher != message.header.publisher:
+def require_same_publisher(state, offset, message):
+    if state.publisher != message.header.publisher:
         raise InvalidPublisher('Event publisher ID must be the same as the the current state.')
 
 
-def require_different_publisher(event, message):
-    if event.publisher == message.header.publisher:
+def require_different_publisher(state, offset, message):
+    if state.publisher == message.header.publisher:
         raise InvalidPublisher('Event publisher ID cannot be the same as the current state.')
 
 

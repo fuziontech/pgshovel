@@ -40,6 +40,7 @@ def test_require_same_batch(message):
             publisher=message.header.publisher,
             batch_identifier=batch_identifier,
         ),
+        0,
         message,
     )
 
@@ -49,6 +50,7 @@ def test_require_same_batch(message):
                 publisher=message.header.publisher,
                 batch_identifier=copy(batch_identifier, id=batch_identifier.id + 1),
             ),
+            0,
             message,
         )
 
@@ -61,6 +63,7 @@ def test_require_batch_advanced_if_same_node(message):
             publisher=message.header.publisher,
             batch_identifier=copy(batch_identifier, node=uuid.uuid1().bytes),
         ),
+        0,
         message,
     )
 
@@ -69,6 +72,7 @@ def test_require_batch_advanced_if_same_node(message):
             publisher=message.header.publisher,
             batch_identifier=copy(batch_identifier, id=batch_identifier.id - 1),
         ),
+        0,
         message,
     )
 
@@ -78,6 +82,7 @@ def test_require_batch_advanced_if_same_node(message):
                 publisher=message.header.publisher,
                 batch_identifier=batch_identifier,
             ),
+            0,
             message,
         )
 
@@ -90,6 +95,7 @@ def test_require_batch_id_not_advanced_if_same_node(message):
             publisher=message.header.publisher,
             batch_identifier=batch_identifier,
         ),
+        0,
         message,
     )
 
@@ -98,6 +104,7 @@ def test_require_batch_id_not_advanced_if_same_node(message):
             publisher=message.header.publisher,
             batch_identifier=copy(batch_identifier, node=uuid.uuid1().bytes),
         ),
+        0,
         message,
     )
 
@@ -107,6 +114,7 @@ def test_require_batch_id_not_advanced_if_same_node(message):
                 publisher=message.header.publisher,
                 batch_identifier=copy(batch_identifier, id=batch_identifier.id + 1),
             ),
+            0,
             message,
         )
 
@@ -119,6 +127,7 @@ def test_require_same_publisher(message):
             publisher=message.header.publisher,
             batch_identifier=batch_identifier,
         ),
+        0,
         message,
     )
 
@@ -128,6 +137,7 @@ def test_require_same_publisher(message):
                 publisher=uuid.uuid1().bytes,
                 batch_identifier=batch_identifier,
             ),
+            0,
             message,
         )
 
@@ -140,6 +150,7 @@ def test_require_different_publisher(message):
             publisher=uuid.uuid1().bytes,  # change the publisher
             batch_identifier=batch_identifier,
         ),
+        0,
         message,
     )
 
@@ -149,6 +160,7 @@ def test_require_different_publisher(message):
                 publisher=message.header.publisher,
                 batch_identifier=batch_identifier,
             ),
+            0,
             message,
         )
 
