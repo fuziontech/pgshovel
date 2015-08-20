@@ -4,7 +4,10 @@ from collections import namedtuple
 
 import pytest
 
-from pgshovel.interfaces.streams_pb2 import BatchOperation
+from pgshovel.interfaces.streams_pb2 import (
+    BatchOperation,
+    Message,
+)
 from pgshovel.replication.validation.transactions import (
     Committed,
     InTransaction,
@@ -21,6 +24,7 @@ from pgshovel.replication.validation.transactions import (
     require_same_publisher,
     validate_transaction_state,
 )
+from pgshovel.utilities.protobuf import get_oneof_value
 from tests.pgshovel.streams.fixtures import (
     batch_identifier,
     begin,
@@ -29,6 +33,7 @@ from tests.pgshovel.streams.fixtures import (
     make_batch_messages,
     message,
     mutation,
+    reserialize,
 )
 
 
@@ -165,47 +170,11 @@ def test_require_different_publisher(message):
         )
 
 
-def test_stateful_validator():
-    Locked = namedtuple('Locked', '')
-    Unlocked = namedtuple('Unlocked', '')
-
-    validator = StatefulStreamValidator({
-        Unlocked: {
-            'coin': lambda state, event: Unlocked(),
-            'push': lambda state, event: Locked(),
-        },
-        Locked: {
-            'coin': lambda state, event: Unlocked(),
-            'push': lambda state, event: Locked(),
-        },
-    }, start=Locked())
-
-    assertions = (
-        ('push', Locked()),
-        ('coin', Unlocked()),
-        ('coin', Unlocked()),
-        ('push', Locked()),
-        ('push', Locked()),
-    )
-
-    inputs = (i[0] for i in assertions)
-    validated = validator(i[0] for i in assertions)
-    expected = (i[1] for i in assertions)
-    for input, (state, event), expected in itertools.izip(inputs, validated, expected):
-        assert input == event
-        assert state == expected
+def test_stateful_validator_unhandled_starting_state(message):
+    validator = StatefulStreamValidator(lambda **kwargs: None, {})
 
     with pytest.raises(InvalidEventError):
-        next(validator(('kick',)))
-
-
-def test_stateful_validator_unhandled_starting_state():
-    events = range(5)
-    validator = StatefulStreamValidator({})
-    validated = validator(events)
-
-    with pytest.raises(InvalidEventError):
-        next(validated)
+        validator(None, 0, message)
 
 
 def test_successful_transaction():
@@ -215,28 +184,28 @@ def test_successful_transaction():
         {'commit_operation': commit},
     ]))
 
-    validated = validate_transaction_state(messages)
+    state = None
 
-    assert next(validated) == (
+    state = reserialize(validate_transaction_state(state, 0, messages[0]))
+    assert get_oneof_value(state, 'state') == (
         InTransaction(
             publisher=messages[0].header.publisher,
             batch_identifier=batch_identifier
-        ),
-        messages[0]
+        )
     )
-    assert next(validated) == (
+    state = reserialize(validate_transaction_state(state, 1, messages[1]))
+    assert get_oneof_value(state, 'state') == (
         InTransaction(
             publisher=messages[1].header.publisher,
             batch_identifier=batch_identifier
-        ),
-        messages[1]
+        )
     )
-    assert next(validated) == (
+    state = reserialize(validate_transaction_state(state, 0, messages[2]))
+    assert get_oneof_value(state, 'state') == (
         Committed(
             publisher=messages[2].header.publisher,
             batch_identifier=batch_identifier
-        ),
-        messages[2]
+        )
     )
 
 
